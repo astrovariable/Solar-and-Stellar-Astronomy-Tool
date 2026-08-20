@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Surya Saathi — Solar Shadow Tracker</title>
+<meta name="description" content="Plot the shadow of a gnomon through the day, and the analemma, for any place in India.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&family=Noto+Sans+Devanagari:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:      #14202e;
+  --ink-soft: #40536b;
+  --ink-faint:#6d7f95;
+  --page:     #eef1f5;
+  --card:     #ffffff;
+  --line:     #cfd8e3;
+  --indigo:   #2f4b99;
+  --indigo-l: #e6ecfa;
+  --marigold: #d98207;
+  --marigold-l:#fdf1dc;
+  --crimson:  #b3261e;
+  --green:    #1f7a5a;
+  --radius:   14px;
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--page);
+  color:var(--ink);
+  font-family:'Inter',system-ui,sans-serif;
+  font-size:17px;
+  line-height:1.55;
+  min-height:100vh;
+}
+
+.wrap{max-width:1120px;margin:0 auto;padding:20px 20px 64px}
+
+/* ── header ───────────────────────────── */
+header{padding:26px 0 20px;text-align:center}
+.eyebrow{
+  font-family:'Noto Sans Devanagari',sans-serif;
+  font-size:16px;color:var(--marigold);letter-spacing:.02em;
+}
+h1{
+  font-family:'Fraunces',Georgia,serif;
+  font-weight:600;
+  font-size:clamp(2.3rem,6vw,3.6rem);
+  line-height:1.05;
+  letter-spacing:-.01em;
+  margin:2px 0 6px;
+}
+.tagline{font-size:16px;color:var(--ink-soft)}
+.tagline b{color:var(--ink);font-weight:600}
+
+/* ── nav ──────────────────────────────── */
+nav{display:flex;justify-content:center;gap:10px;margin:20px 0 26px;flex-wrap:wrap}
+.nav-link{
+  display:inline-flex;align-items:center;gap:8px;
+  font-family:'IBM Plex Mono',monospace;
+  font-size:14px;font-weight:500;letter-spacing:.02em;
+  text-decoration:none;color:var(--ink-soft);
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:999px;
+  padding:9px 20px;
+  transition:border-color .15s,color .15s,background .15s;
+}
+.nav-link:hover{border-color:var(--indigo);color:var(--indigo)}
+.nav-link[aria-current="page"]{
+  background:var(--indigo);border-color:var(--indigo);color:#fff;
+}
+.nav-link .dot{width:9px;height:9px;border-radius:50%;background:var(--marigold)}
+.nav-link[aria-current="page"] .dot{background:#ffd27a}
+
+/* ── panels ───────────────────────────── */
+.panel{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  padding:22px 24px;
+  margin-bottom:20px;
+  box-shadow:0 1px 2px rgba(20,32,46,.05);
+}
+.panel-title{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:12px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--indigo);
+  margin-bottom:16px;
+}
+
+.ctrl-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px 20px}
+.ctrl{display:flex;flex-direction:column;gap:7px}
+.ctrl label,.field-label{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:12px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink-soft);
+}
+input[type=number],input[type=date],select{
+  background:#fff;
+  border:1.5px solid var(--line);
+  border-radius:9px;
+  color:var(--ink);
+  padding:10px 12px;
+  font-family:'IBM Plex Mono',monospace;
+  font-size:16px;
+  width:100%;
+  outline:none;
+  transition:border-color .15s,box-shadow .15s;
+}
+input:focus,select:focus,button:focus-visible,a:focus-visible{
+  border-color:var(--indigo);
+  box-shadow:0 0 0 3px rgba(47,75,153,.18);
+}
+a:focus-visible,button:focus-visible{outline:2px solid var(--indigo);outline-offset:2px}
+
+.ctrl.time-ctrl{grid-column:span 2}
+.time-row{display:flex;align-items:center;gap:6px}
+.time-row select{flex:1;min-width:72px;padding:10px 4px;text-align:center}
+.time-sep{font-family:'IBM Plex Mono',monospace;font-weight:600;color:var(--ink-faint)}
+.btn-now{
+  border:1.5px solid var(--line);background:#fff;border-radius:9px;
+  font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:500;
+  color:var(--indigo);padding:10px 12px;cursor:pointer;white-space:nowrap;
+  transition:background .15s,border-color .15s;
+}
+.btn-now:hover{background:var(--indigo-l);border-color:var(--indigo)}
+
+.city-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.city-btn{
+  background:#fff;border:1.5px solid var(--line);border-radius:999px;
+  color:var(--ink-soft);
+  font-family:'IBM Plex Mono',monospace;font-size:13px;
+  padding:6px 15px;cursor:pointer;
+  transition:all .15s;
+}
+.city-btn:hover{border-color:var(--indigo);color:var(--indigo)}
+.city-btn.active{background:var(--indigo);border-color:var(--indigo);color:#fff}
+
+/* ── readouts ─────────────────────────── */
+.readouts{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:12px;margin-bottom:20px}
+.readout{
+  background:var(--card);border:1px solid var(--line);
+  border-left:4px solid var(--indigo);
+  border-radius:10px;padding:12px 16px;
+}
+.readout .label{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:11px;letter-spacing:.11em;text-transform:uppercase;
+  color:var(--ink-faint);margin-bottom:3px;
+}
+.readout .value{font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:500;color:var(--ink)}
+.readout .value.warn{color:var(--crimson)}
+.readout .value.dim{color:var(--ink-faint)}
+
+/* ── tabs ─────────────────────────────── */
+.tab-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.tab-btn{
+  background:#fff;border:1.5px solid var(--line);border-radius:9px;
+  color:var(--ink-soft);
+  font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:500;
+  padding:9px 18px;cursor:pointer;transition:all .15s;
+}
+.tab-btn:hover{border-color:var(--indigo);color:var(--indigo)}
+.tab-btn.active{background:var(--marigold);border-color:var(--marigold);color:#fff}
+
+/* ── board ────────────────────────────── */
+.board-panel{padding:20px}
+.canvas-wrap{
+  position:relative;
+  width:min(88vw,660px);height:min(88vw,660px);
+  margin:0 auto;
+  border-radius:50%;
+  box-shadow:0 6px 28px rgba(20,32,46,.16);
+}
+.canvas-wrap canvas{display:block;width:100%;height:100%;border-radius:50%}
+
+.legend{
+  display:flex;gap:18px 24px;flex-wrap:wrap;justify-content:center;
+  font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ink-soft);
+  margin-top:18px;
+}
+.legend-item{display:flex;align-items:center;gap:8px}
+.swatch{width:16px;height:4px;border-radius:2px;flex:none}
+.swatch.round{width:11px;height:11px;border-radius:50%}
+
+.note{font-size:15px;color:var(--ink-soft);margin-top:14px;text-align:center}
+
+footer{
+  text-align:center;font-family:'IBM Plex Mono',monospace;
+  font-size:12.5px;color:var(--ink-faint);
+  border-top:1px solid var(--line);margin-top:34px;padding-top:18px;
+}
+
+@media (max-width:760px){
+  .ctrl.time-ctrl{grid-column:span 1}
+}
+@media (max-width:520px){
+  body{font-size:16px}
+  .wrap{padding:14px 14px 48px}
+  .panel{padding:18px 16px}
+  .canvas-wrap{width:92vw;height:92vw}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">सूर्य साथी</div>
+  <h1>Surya Saathi</h1>
+  <div class="tagline">Where the shadow falls — a gnomon plotted for <b>any place, any moment</b></div>
+</header>
+
+<nav>
+  <a class="nav-link" href="index.html" aria-current="page"><span class="dot"></span>Shadow board</a>
+  <a class="nav-link" id="skyLink" href="skymap.html"><span class="dot"></span>Sky map</a>
+</nav>
+
+<!-- Controls -->
+<div class="panel">
+  <div class="panel-title">Place, date and time</div>
+  <div class="ctrl-grid">
+    <div class="ctrl">
+      <label for="lat">Latitude (°N)</label>
+      <input type="number" id="lat" value="19.07" step="0.01" min="-90" max="90">
+    </div>
+    <div class="ctrl">
+      <label for="lon">Longitude (°E)</label>
+      <input type="number" id="lon" value="72.87" step="0.01" min="-180" max="180">
+    </div>
+    <div class="ctrl">
+      <label for="date">Date</label>
+      <input type="date" id="date">
+    </div>
+    <div class="ctrl time-ctrl">
+      <span class="field-label">Time — IST (hh : mm : ss)</span>
+      <div class="time-row">
+        <select id="hh" aria-label="Hour"></select>
+        <span class="time-sep">:</span>
+        <select id="mm" aria-label="Minute"></select>
+        <span class="time-sep">:</span>
+        <select id="ss" aria-label="Second"></select>
+        <button class="btn-now" id="btnNow" type="button">Now</button>
+      </div>
+    </div>
+    <div class="ctrl">
+      <label for="height">Gnomon height (cm)</label>
+      <input type="number" id="height" value="20" min="1" max="200" step="0.5">
+    </div>
+  </div>
+
+  <div class="city-row" id="cityRow">
+    <button class="city-btn" data-lat="28.61" data-lon="77.23">Delhi</button>
+    <button class="city-btn active" data-lat="19.07" data-lon="72.87">Mumbai</button>
+    <button class="city-btn" data-lat="12.97" data-lon="77.59">Bengaluru</button>
+    <button class="city-btn" data-lat="22.57" data-lon="88.36">Kolkata</button>
+    <button class="city-btn" data-lat="13.08" data-lon="80.27">Chennai</button>
+    <button class="city-btn" data-lat="17.38" data-lon="78.47">Hyderabad</button>
+    <button class="city-btn" data-lat="23.02" data-lon="72.57">Ahmedabad</button>
+    <button class="city-btn" data-lat="26.92" data-lon="75.82">Jaipur</button>
+    <button class="city-btn" data-lat="22.72" data-lon="75.86">Indore</button>
+    <button class="city-btn" data-lat="23.18" data-lon="75.78">Ujjain</button>
+    <button class="city-btn" data-lat="21.14" data-lon="79.08">Nagpur</button>
+    <button class="city-btn" data-lat="8.52"  data-lon="76.94">Thiruvananthapuram</button>
+    <button class="city-btn" data-lat="34.08" data-lon="74.79">Srinagar</button>
+    <button class="city-btn" data-lat="27.10" data-lon="88.61">Gangtok</button>
+  </div>
+</div>
+
+<!-- Readouts -->
+<div class="readouts">
+  <div class="readout"><div class="label">Solar altitude</div><div class="value" id="iAlt">—</div></div>
+  <div class="readout"><div class="label">Solar azimuth</div><div class="value" id="iAz">—</div></div>
+  <div class="readout"><div class="label">Shadow length</div><div class="value" id="iShadow">—</div></div>
+  <div class="readout"><div class="label">Declination</div><div class="value" id="iDec">—</div></div>
+  <div class="readout"><div class="label">Equation of time</div><div class="value" id="iEoT">—</div></div>
+  <div class="readout"><div class="label">Solar noon (IST)</div><div class="value" id="iNoon">—</div></div>
+</div>
+
+<!-- Board -->
+<div class="panel board-panel">
+  <div class="tab-row">
+    <button class="tab-btn active" id="tabDaily" type="button">Shadow through the day</button>
+    <button class="tab-btn" id="tabAnalemma" type="button">Analemma</button>
+    <button class="tab-btn" id="tabBoth" type="button">Both</button>
+  </div>
+
+  <div class="canvas-wrap"><canvas id="board"></canvas></div>
+
+  <div class="legend">
+    <div class="legend-item"><span class="swatch" style="background:#2f4b99"></span>Shadow tip through the day</div>
+    <div class="legend-item"><span class="swatch round" style="background:#1f7a5a"></span>Analemma (same clock time, all year)</div>
+    <div class="legend-item"><span class="swatch round" style="background:#b3261e"></span>Gnomon</div>
+    <div class="legend-item"><span class="swatch round" style="background:#f0b429;border:1.5px solid #d98207"></span>Shadow tip right now</div>
+  </div>
+
+  <p class="note">Board radius is 60&nbsp;cm. Rings are drawn every 10&nbsp;cm from the gnomon; anything longer than 60&nbsp;cm runs off the board.</p>
+</div>
+
+<footer>IST = UTC +5:30 · clock meridian 82.5°E · Spencer declination · equation of time in minutes</footer>
+
+</div>
+
+<script>
+/* ══════════════════════════════════════════
+   CONSTANTS
+══════════════════════════════════════════ */
+const IST_OFFSET_H = 5.5;
+const IST_MERIDIAN = IST_OFFSET_H * 15;   // 82.5°E
+const PLOT_R_CM    = 60;                  // board radius in cm
+const DEG = Math.PI / 180;
+
+/* ══════════════════════════════════════════
+   SOLAR MATH
+══════════════════════════════════════════ */
+function dayOfYear(d){
+  const start = new Date(d.getFullYear(), 0, 0);
+  return Math.floor((d - start) / 86400000);
+}
+function solarGamma(N, IST){ return 2 * Math.PI / 365 * (N - 1 + (IST - 12) / 24); }
+
+function equationOfTime(g){
+  return 229.18 * (0.000075 + 0.001868*Math.cos(g) - 0.032077*Math.sin(g)
+                 - 0.014615*Math.cos(2*g) - 0.040849*Math.sin(2*g));
+}
+function declination(g){
+  return 0.006918 - 0.399912*Math.cos(g) + 0.070257*Math.sin(g)
+       - 0.006758*Math.cos(2*g) + 0.000907*Math.sin(2*g)
+       - 0.002697*Math.cos(3*g) + 0.00148 *Math.sin(3*g);   // radians
+}
+
+function solarPosition(lat, lon, N, IST){
+  const gamma = solarGamma(N, IST);
+  const EoT   = equationOfTime(gamma);
+  const dec   = declination(gamma);
+
+  const timeOffset = EoT + 4 * (lon - IST_MERIDIAN);
+  const tst = IST * 60 + timeOffset;
+  const H   = tst / 4 - 180;              // hour angle, degrees
+  const h   = H * DEG, phi = lat * DEG;
+
+  const sinAlt = Math.sin(phi)*Math.sin(dec) + Math.cos(phi)*Math.cos(dec)*Math.cos(h);
+  const alt = Math.asin(Math.max(-1, Math.min(1, sinAlt)));
+
+  const cosAlt = Math.cos(alt), cosPhi = Math.cos(phi);
+  let az = 0;
+  if (Math.abs(cosAlt) > 1e-9 && Math.abs(cosPhi) > 1e-9){
+    const cosAz = (Math.sin(dec) - Math.sin(alt)*Math.sin(phi)) / (cosAlt*cosPhi);
+    az = Math.acos(Math.max(-1, Math.min(1, cosAz)));
+    if (H > 0) az = 2*Math.PI - az;
+  }
+  return { alt, az, altDeg: alt/DEG, azDeg: az/DEG, H, EoT, decDeg: dec/DEG, tst };
+}
+
+function solarNoonIST(lat, lon, N){
+  const EoT = equationOfTime(solarGamma(N, 12));
+  return (720 - EoT - 4 * (lon - IST_MERIDIAN)) / 60;
+}
+function formatTime(h){
+  let hh = Math.floor(h), mm = Math.round((h - hh) * 60);
+  if (mm === 60){ hh += 1; mm = 0; }
+  return String(hh).padStart(2,'0') + ':' + String(mm).padStart(2,'0');
+}
+
+/* ══════════════════════════════════════════
+   TIME CONTROLS (hh : mm : ss)
+══════════════════════════════════════════ */
+function fillSelect(el, max){
+  const frag = document.createDocumentFragment();
+  for (let i = 0; i <= max; i++){
+    const o = document.createElement('option');
+    o.value = i; o.textContent = String(i).padStart(2,'0');
+    frag.appendChild(o);
+  }
+  el.appendChild(frag);
+}
+fillSelect(document.getElementById('hh'), 23);
+fillSelect(document.getElementById('mm'), 59);
+fillSelect(document.getElementById('ss'), 59);
+
+function getTimeParts(){
+  return {
+    h: +document.getElementById('hh').value,
+    m: +document.getElementById('mm').value,
+    s: +document.getElementById('ss').value
+  };
+}
+function getTimeDecimal(){
+  const t = getTimeParts();
+  return t.h + t.m/60 + t.s/3600;
+}
+function setTimeParts(h, m, s){
+  document.getElementById('hh').value = h;
+  document.getElementById('mm').value = m;
+  document.getElementById('ss').value = s;
+}
+
+/* ══════════════════════════════════════════
+   STATE
+══════════════════════════════════════════ */
+let currentTab = 'daily';
+function setTab(t){
+  currentTab = t;
+  document.getElementById('tabDaily').classList.toggle('active', t === 'daily');
+  document.getElementById('tabAnalemma').classList.toggle('active', t === 'analemma');
+  document.getElementById('tabBoth').classList.toggle('active', t === 'both');
+  render();
+}
+document.getElementById('tabDaily').onclick    = () => setTab('daily');
+document.getElementById('tabAnalemma').onclick = () => setTab('analemma');
+document.getElementById('tabBoth').onclick     = () => setTab('both');
+
+/* ══════════════════════════════════════════
+   BOARD GEOMETRY
+══════════════════════════════════════════ */
+function buildBoardGeometry(canvas){
+  const dpr   = window.devicePixelRatio || 1;
+  const css_w = canvas.clientWidth || 600;
+  canvas.width  = Math.round(css_w * dpr);
+  canvas.height = Math.round(css_w * dpr);
+  const R_px = canvas.width / 2;
+  return {
+    scale: R_px / PLOT_R_CM,   // px per cm
+    gx: R_px, gy: R_px, R_px, dpr,
+    // font sizes are given in CSS px and scaled to device px, so labels
+    // stay the same visual size on every screen
+    f: cssPx => Math.round(cssPx * dpr * Math.min(1, css_w / 560) * 1.0)
+  };
+}
+function inCircle(geo, px, py){
+  const dx = px - geo.gx, dy = py - geo.gy;
+  return dx*dx + dy*dy <= geo.R_px * geo.R_px;
+}
+function shadowPx(geo, x_cm, y_cm){
+  return { px: geo.gx + x_cm * geo.scale, py: geo.gy - y_cm * geo.scale };
+}
+
+/* ══════════════════════════════════════════
+   LABELS — halo text plus simple collision avoidance
+   so that crowded hour marks never print on top of
+   each other. Labels are offered in priority order;
+   whatever no longer fits is dropped.
+══════════════════════════════════════════ */
+let placedLabels = [];
+const resetLabels = () => { placedLabels = []; };
+
+function boxOf(text, x, y, size, align){
+  const w = text.length * size * 0.62, h = size * 1.2;
+  const x0 = align === 'left' ? x : (align === 'right' ? x - w : x - w/2);
+  return { x0, y0: y - h/2, x1: x0 + w, y1: y + h/2 };
+}
+const isFree = b => !placedLabels.some(p => b.x0 < p.x1 && b.x1 > p.x0 && b.y0 < p.y1 && b.y1 > p.y0);
+
+function haloText(ctx, text, x, y, o = {}){
+  const { size = 12, color = '#14202e', weight = '500', align = 'center',
+          baseline = 'middle', halo = '#ffffff', haloW = 4,
+          font = 'IBM Plex Mono, monospace' } = o;
+  ctx.save();
+  ctx.font = `${weight} ${size}px ${font}`;
+  ctx.textAlign = align; ctx.textBaseline = baseline;
+  ctx.lineJoin = 'round'; ctx.lineWidth = haloW; ctx.strokeStyle = halo;
+  ctx.strokeText(text, x, y);
+  ctx.fillStyle = color; ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+/* Returns true if the label was placed. force = always draw. */
+function label(ctx, text, x, y, o = {}, force = false){
+  const b = boxOf(text, x, y, o.size || 12, o.align || 'center');
+  if (!force && !isFree(b)) return false;
+  placedLabels.push(b);
+  haloText(ctx, text, x, y, o);
+  return true;
+}
+
+/* ══════════════════════════════════════════
+   DRAWING
+══════════════════════════════════════════ */
+function drawBoardBackground(ctx, geo){
+  const { gx, gy, R_px, scale, dpr } = geo;
+
+  ctx.save();
+  ctx.beginPath(); ctx.arc(gx, gy, R_px, 0, 2*Math.PI); ctx.clip();
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, gx*2, gy*2);
+
+  // range rings every 10 cm
+  ctx.strokeStyle = 'rgba(20,32,46,0.20)';
+  ctx.lineWidth = Math.max(1, dpr*0.7);
+  for (let r = 10; r < PLOT_R_CM; r += 10){
+    ctx.beginPath(); ctx.arc(gx, gy, r*scale, 0, 2*Math.PI); ctx.stroke();
+  }
+
+  // spokes every 45°
+  ctx.strokeStyle = 'rgba(20,32,46,0.14)';
+  for (let a = 0; a < 360; a += 45){
+    const rad = (a - 90) * DEG;
+    ctx.beginPath();
+    ctx.moveTo(gx, gy);
+    ctx.lineTo(gx + Math.cos(rad)*R_px, gy + Math.sin(rad)*R_px);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // rim
+  ctx.save();
+  ctx.strokeStyle = '#14202e';
+  ctx.lineWidth = Math.max(2, dpr*1.6);
+  ctx.beginPath(); ctx.arc(gx, gy, R_px - dpr, 0, 2*Math.PI); ctx.stroke();
+  ctx.restore();
+
+  // gnomon
+  ctx.save();
+  ctx.fillStyle = '#b3261e';
+  ctx.beginPath(); ctx.arc(gx, gy, Math.max(4, dpr*4), 0, 2*Math.PI); ctx.fill();
+  ctx.restore();
+
+  // compass points — always drawn
+  const dirs = [['N',-90],['NE',-45],['E',0],['SE',45],['S',90],['SW',135],['W',180],['NW',-135]];
+  const labelR = R_px - geo.f(18);
+  dirs.forEach(([txt, deg]) => {
+    const rad = deg * DEG, major = txt.length === 1;
+    label(ctx, txt, gx + Math.cos(rad)*labelR, gy + Math.sin(rad)*labelR, {
+      size: geo.f(major ? 20 : 13),
+      weight: major ? '600' : '500',
+      color: txt === 'N' ? '#b3261e' : (major ? '#14202e' : '#6d7f95'),
+      haloW: dpr*5
+    }, true);
+  });
+
+  label(ctx, 'gnomon', gx, gy + geo.f(16),
+    { size: geo.f(12), color: '#b3261e', weight: '600', haloW: dpr*5 }, true);
+}
+
+/* Ring distances — lowest priority, drawn last */
+function drawRingLabels(ctx, geo){
+  for (let r = 10; r < PLOT_R_CM; r += 10){
+    const rad = -50 * DEG;
+    label(ctx, r + ' cm',
+      geo.gx + Math.cos(rad)*r*geo.scale, geo.gy + Math.sin(rad)*r*geo.scale,
+      { size: geo.f(12), color: '#8896a8', haloW: geo.dpr*4 });
+  }
+}
+
+/* Draws the trail and hour dots; returns the hour labels for later placement */
+function plotDailyShadow(ctx, geo, lat, lon, N, height){
+  ctx.save();
+  ctx.beginPath(); ctx.arc(geo.gx, geo.gy, geo.R_px - 1, 0, 2*Math.PI); ctx.clip();
+
+  ctx.strokeStyle = '#2f4b99';
+  ctx.lineWidth = Math.max(2, geo.dpr*1.9);
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  let pen = false;
+  for (let t = 4*60; t <= 20*60; t += 2){
+    const IST = t/60;
+    const pos = solarPosition(lat, lon, N, IST);
+    if (pos.alt <= 0.002){ pen = false; continue; }
+    const L = height / Math.tan(pos.alt);
+    const saz = pos.az + Math.PI;
+    const { px, py } = shadowPx(geo, L*Math.sin(saz), L*Math.cos(saz));
+    if (!inCircle(geo, px, py)){ pen = false; continue; }
+    pen ? ctx.lineTo(px, py) : (ctx.moveTo(px, py), pen = true);
+  }
+  ctx.stroke();
+  ctx.restore();
+
+  const labels = [];
+  for (let h = 5; h <= 19; h++){
+    const pos = solarPosition(lat, lon, N, h);
+    if (pos.alt <= 0.002) continue;
+    const L = height / Math.tan(pos.alt);
+    const saz = pos.az + Math.PI;
+    const { px, py } = shadowPx(geo, L*Math.sin(saz), L*Math.cos(saz));
+    if (!inCircle(geo, px, py)) continue;
+
+    const noon = h === 12;
+    ctx.save();
+    ctx.fillStyle = noon ? '#b3261e' : '#2f4b99';
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = Math.max(1.5, geo.dpr*1.2);
+    ctx.beginPath(); ctx.arc(px, py, Math.max(3, geo.dpr*3), 0, 2*Math.PI);
+    ctx.fill(); ctx.stroke();
+    ctx.restore();
+
+    const dx = px - geo.gx, dy = py - geo.gy;
+    const len = Math.hypot(dx, dy) || 1;
+    const off = geo.f(16);
+    labels.push({
+      noon,
+      text: String(h).padStart(2,'0') + ':00',
+      x: px + dx/len*off, y: py + dy/len*off,
+      o: { size: geo.f(noon ? 15 : 13),
+           weight: noon ? '600' : '500',
+           color: noon ? '#b3261e' : '#2f4b99',
+           haloW: geo.dpr*5 }
+    });
+  }
+  return labels;
+}
+
+/* Draws the analemma dots; returns the month labels for later placement */
+function plotAnalemma(ctx, geo, lat, lon, height, IST){
+  ctx.save();
+  ctx.beginPath(); ctx.arc(geo.gx, geo.gy, geo.R_px - 1, 0, 2*Math.PI); ctx.clip();
+  for (let N = 1; N <= 365; N++){
+    const pos = solarPosition(lat, lon, N, IST);
+    if (pos.alt <= 0.002) continue;
+    const L = height / Math.tan(pos.alt);
+    const saz = pos.az + Math.PI;
+    const { px, py } = shadowPx(geo, L*Math.sin(saz), L*Math.cos(saz));
+    if (!inCircle(geo, px, py)) continue;
+    ctx.fillStyle = '#1f7a5a';
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath(); ctx.arc(px, py, Math.max(1.8, geo.dpr*1.7), 0, 2*Math.PI); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  const monthStart = [1,32,60,91,121,152,182,213,244,274,305,335];
+  const monthName  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const labels = [];
+  monthStart.forEach((N, i) => {
+    if (i % 2) return;                      // alternate months, to keep the loop readable
+    const pos = solarPosition(lat, lon, N, IST);
+    if (pos.alt <= 0.002) return;
+    const L = height / Math.tan(pos.alt);
+    const saz = pos.az + Math.PI;
+    const { px, py } = shadowPx(geo, L*Math.sin(saz), L*Math.cos(saz));
+    if (!inCircle(geo, px, py)) return;
+
+    ctx.save();
+    ctx.fillStyle = '#1f7a5a'; ctx.strokeStyle = '#fff';
+    ctx.lineWidth = Math.max(1.5, geo.dpr*1.2);
+    ctx.beginPath(); ctx.arc(px, py, Math.max(3, geo.dpr*3), 0, 2*Math.PI);
+    ctx.fill(); ctx.stroke();
+    ctx.restore();
+
+    labels.push({ text: monthName[i], x: px + geo.f(16), y: py,
+      o: { size: geo.f(13), color: '#1f7a5a', weight: '600', align: 'left', haloW: geo.dpr*5 } });
+  });
+  return labels;
+}
+
+/* Draws the live shadow; returns its length label */
+function drawCurrentShadow(ctx, geo, lat, lon, N, IST, height){
+  const pos = solarPosition(lat, lon, N, IST);
+  if (pos.alt <= 0.01) return null;
+
+  const L = height / Math.tan(pos.alt);
+  const saz = pos.az + Math.PI;
+  const { px, py } = shadowPx(geo, L*Math.sin(saz), L*Math.cos(saz));
+
+  ctx.save();
+  ctx.beginPath(); ctx.arc(geo.gx, geo.gy, geo.R_px - 1, 0, 2*Math.PI); ctx.clip();
+  ctx.strokeStyle = 'rgba(217,130,7,0.9)';
+  ctx.lineWidth = Math.max(2, geo.dpr*2);
+  ctx.setLineDash([geo.dpr*6, geo.dpr*5]);
+  ctx.beginPath(); ctx.moveTo(geo.gx, geo.gy); ctx.lineTo(px, py); ctx.stroke();
+  ctx.restore();
+
+  if (!inCircle(geo, px, py)) return null;
+
+  ctx.save();
+  ctx.fillStyle = '#f0b429'; ctx.strokeStyle = '#8a5200';
+  ctx.lineWidth = Math.max(1.5, geo.dpr*1.5);
+  ctx.beginPath(); ctx.arc(px, py, Math.max(6, geo.dpr*5.5), 0, 2*Math.PI);
+  ctx.fill(); ctx.stroke();
+  ctx.restore();
+
+  return { text: L.toFixed(1) + ' cm', x: px, y: py - geo.f(18),
+    o: { size: geo.f(14), color: '#8a5200', weight: '600', haloW: geo.dpr*5 } };
+}
+
+/* ══════════════════════════════════════════
+   RENDER
+══════════════════════════════════════════ */
+function render(){
+  const lat    = parseFloat(document.getElementById('lat').value)    || 0;
+  const lon    = parseFloat(document.getElementById('lon').value)    || 0;
+  const height = parseFloat(document.getElementById('height').value) || 20;
+  const IST    = getTimeDecimal();
+
+  const dv = document.getElementById('date').value;
+  const d  = dv ? new Date(dv + 'T00:00:00') : new Date();
+  const N  = dayOfYear(d);
+
+  const canvas = document.getElementById('board');
+  const geo = buildBoardGeometry(canvas);
+  const ctx = canvas.getContext('2d');
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  resetLabels();
+  drawBoardBackground(ctx, geo);
+
+  const showAnalemma = currentTab === 'analemma' || currentTab === 'both';
+  const showDaily    = currentTab === 'daily'    || currentTab === 'both';
+
+  const monthLabels = showAnalemma ? plotAnalemma(ctx, geo, lat, lon, height, IST) : [];
+  const hourLabels  = showDaily    ? plotDailyShadow(ctx, geo, lat, lon, N, height) : [];
+  const nowLabel    = drawCurrentShadow(ctx, geo, lat, lon, N, IST, height);
+
+  // labels in priority order: now, noon, month markers, remaining hours, ring distances
+  if (nowLabel) label(ctx, nowLabel.text, nowLabel.x, nowLabel.y, nowLabel.o, true);
+  hourLabels.filter(l => l.noon).forEach(l => label(ctx, l.text, l.x, l.y, l.o, true));
+  monthLabels.forEach(l => label(ctx, l.text, l.x, l.y, l.o));
+  hourLabels.filter(l => !l.noon).forEach(l => label(ctx, l.text, l.x, l.y, l.o));
+  drawRingLabels(ctx, geo);
+
+  const pos  = solarPosition(lat, lon, N, IST);
+  const isUp = pos.alt > 0.01;
+
+  const alt = document.getElementById('iAlt');
+  alt.textContent = isUp ? pos.altDeg.toFixed(2) + '°' : 'Below horizon';
+  alt.className = 'value' + (isUp ? '' : ' warn');
+
+  document.getElementById('iAz').textContent  = pos.azDeg.toFixed(1) + '°';
+  document.getElementById('iDec').textContent = pos.decDeg.toFixed(3) + '°';
+  document.getElementById('iEoT').textContent = pos.EoT.toFixed(2) + ' min';
+
+  const sh = document.getElementById('iShadow');
+  if (isUp){
+    sh.textContent = (height / Math.tan(pos.alt)).toFixed(1) + ' cm';
+    sh.className = 'value';
+  } else {
+    sh.textContent = '—';
+    sh.className = 'value dim';
+  }
+
+  document.getElementById('iNoon').textContent = formatTime(solarNoonIST(lat, lon, N)) + ' IST';
+  updateSkyLink();
+}
+
+/* Carry the current place, date and time over to the sky map */
+function updateSkyLink(){
+  const t = getTimeParts();
+  const q = new URLSearchParams({
+    lat: document.getElementById('lat').value,
+    lon: document.getElementById('lon').value,
+    date: document.getElementById('date').value,
+    h: t.h, m: t.m, s: t.s
+  });
+  document.getElementById('skyLink').href = 'skymap.html?' + q.toString();
+}
+
+/* ══════════════════════════════════════════
+   EVENTS
+══════════════════════════════════════════ */
+document.getElementById('cityRow').addEventListener('click', e => {
+  const btn = e.target.closest('.city-btn');
+  if (!btn) return;
+  document.querySelectorAll('.city-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('lat').value = btn.dataset.lat;
+  document.getElementById('lon').value = btn.dataset.lon;
+  render();
+});
+
+['lat','lon','date','height'].forEach(id =>
+  document.getElementById(id).addEventListener('input', render));
+['hh','mm','ss'].forEach(id =>
+  document.getElementById(id).addEventListener('change', render));
+
+document.getElementById('btnNow').addEventListener('click', () => {
+  const now = new Date();
+  document.getElementById('date').value = localDateISO(now);
+  setTimeParts(now.getHours(), now.getMinutes(), now.getSeconds());
+  render();
+});
+
+let rt;
+window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(render, 120); });
+
+/* ══════════════════════════════════════════
+   INIT
+══════════════════════════════════════════ */
+function localDateISO(d){
+  return d.getFullYear() + '-' +
+         String(d.getMonth()+1).padStart(2,'0') + '-' +
+         String(d.getDate()).padStart(2,'0');
+}
+
+(function init(){
+  const p = new URLSearchParams(location.search);
+  const now = new Date();
+
+  document.getElementById('date').value = p.get('date') || localDateISO(now);
+  setTimeParts(
+    p.has('h') ? +p.get('h') : now.getHours(),
+    p.has('m') ? +p.get('m') : now.getMinutes(),
+    p.has('s') ? +p.get('s') : now.getSeconds()
+  );
+  if (p.has('lat')) document.getElementById('lat').value = p.get('lat');
+  if (p.has('lon')){
+    document.getElementById('lon').value = p.get('lon');
+    document.querySelectorAll('.city-btn').forEach(b => b.classList.remove('active'));
+  }
+  render();
+})();
+</script>
+</body>
+</html>
